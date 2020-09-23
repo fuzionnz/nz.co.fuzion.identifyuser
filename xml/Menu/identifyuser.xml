@@ -1,0 +1,10 @@
+<?xml version="1.0"?>
+<menu>
+  <item>
+    <path>civicrm/dedupeidentifier</path>
+    <page_callback>CRM_Identifyuser_Form_DedupeIdentifier</page_callback>
+    <title>DedupeIdentifier</title>
+    <access_callback>1</access_callback>
+    <is_public>true</is_public>
+  </item>
+</menu>
