@@ -114,21 +114,71 @@ function identifyuser_civicrm_angularModules(&$angularModules) {
   _identifyuser_civix_civicrm_angularModules($angularModules);
 }
 
+function identifyuser_civicrm_postProcess($formName, $form) {
+  if (in_array($formName, ['CRM_Contribute_Form_ContributionPage_Settings', 'CRM_Event_Form_ManageEvent_Registration'])) {
+    $enableLookup = Civi::settings()->get('enable_lookup');
+    $setting = ($formName == 'CRM_Contribute_Form_ContributionPage_Settings') ? 'contribution' : 'event';
+    $entityID = $form->getVar('_id') ?? NULL;
+
+    if (!empty($entityID) && isset($form->_submitValues['enable_lookup'])) {
+      $enableLookup["{$setting}_{$entityID}"] = $form->_submitValues['enable_lookup'];
+      Civi::settings()->set('enable_lookup', $enableLookup);
+    }
+  }
+}
+
 function identifyuser_civicrm_buildForm($formName, &$form) {
-  $contactID = CRM_Core_Session::getLoggedInContactID();
-  if (empty($contactID) && $formName == 'CRM_Event_Form_Registration_Register') {
-    $defaultIndivUnsup = civicrm_api3('RuleGroup', 'getsingle', [
-      'contact_type' => "Individual",
-      'used' => "Unsupervised",
-    ])['id'];
-    $dedupeRuleID = $form->_values['event']['dedupe_rule_group_id'] ?? $defaultIndivUnsup;
-    $form->assign("rule_id", $dedupeRuleID);
-    $form->assign("event_id", $form->_eventId);
+  if (in_array($formName, ['CRM_Contribute_Form_ContributionPage_Settings', 'CRM_Event_Form_ManageEvent_Registration'])) {
+    $enableLookup = Civi::settings()->get('enable_lookup');
+    $setting = ($formName == 'CRM_Contribute_Form_ContributionPage_Settings') ? 'contribution' : 'event';
+    $entityID = $form->getVar('_id') ?? NULL;
+
+    if (!empty($entityID) && !empty($enableLookup["{$setting}_{$entityID}"])) {
+      $defaults = ['enable_lookup' => $enableLookup["{$setting}_{$entityID}"]];
+      $form->setDefaults($defaults);
+    }
+    $form->add('advcheckbox', 'enable_lookup', ts('Enable User Lookup on the page?'));
+    $form->assign("formName", $formName);
 
     $templatePath = realpath(dirname(__FILE__)."/templates");
     CRM_Core_Region::instance('page-body')->add(array(
-      'template' => "{$templatePath}/dedupe_form.tpl"
+      'template' => "{$templatePath}/enable_lookup.tpl"
     ));
+  }
+  elseif (in_array($formName, ['CRM_Event_Form_Registration_Register', 'CRM_Contribute_Form_Contribution_Main'])) {
+    $enableLookup = Civi::settings()->get('enable_lookup');
+    $setting = ($formName == 'CRM_Contribute_Form_Contribution_Main') ? 'contribution' : 'event';
+    if ($formName == 'CRM_Event_Form_Registration_Register') {
+      $entityID = $form->_eventId;
+    }
+    elseif ($formName == 'CRM_Contribute_Form_Contribution_Main') {
+      $entityID = $form->_id;
+      $form->assign("page_id", $form->_id);
+    }
+
+    $contactID = $form->getContactID();
+    if (empty($contactID) && !empty($enableLookup["{$setting}_{$entityID}"])) {
+      $defaultIndivUnsup = civicrm_api3('RuleGroup', 'getsingle', [
+        'contact_type' => "Individual",
+        'used' => "Unsupervised",
+      ])['id'];
+      $dedupeRuleID = $defaultIndivUnsup;
+      if ($formName == 'CRM_Event_Form_Registration_Register') {
+        $form->assign("event_id", $form->_eventId);
+        if (!empty($form->_values['event']['dedupe_rule_group_id'])) {
+          $dedupeRuleID = $form->_values['event']['dedupe_rule_group_id'];
+        }
+      }
+      elseif ($formName == 'CRM_Contribute_Form_Contribution_Main') {
+        $form->assign("page_id", $form->_id);
+      }
+
+      $form->assign("rule_id", $dedupeRuleID);
+      $templatePath = realpath(dirname(__FILE__)."/templates");
+      CRM_Core_Region::instance('page-body')->add(array(
+        'template' => "{$templatePath}/dedupe_form.tpl"
+      ));
+    }
   }
 }
 
