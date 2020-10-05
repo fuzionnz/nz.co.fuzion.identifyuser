@@ -7,4 +7,11 @@
     <access_callback>1</access_callback>
     <is_public>true</is_public>
   </item>
+  <item>
+    <path>civicrm/verifyotp</path>
+    <page_callback>CRM_Identifyuser_Form_VerifyOTP</page_callback>
+    <title>VerifyOTP</title>
+    <access_callback>1</access_callback>
+    <is_public>true</is_public>
+  </item>
 </menu>

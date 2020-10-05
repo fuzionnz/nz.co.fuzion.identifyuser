@@ -12,9 +12,6 @@ class CRM_Identifyuser_Form_DedupeIdentifier extends CRM_Core_Form {
     $this->ruleID = CRM_Utils_Request::retrieve('rule_id', 'Positive', $this);
     $this->eventID = CRM_Utils_Request::retrieve('event_id', 'Positive', $this);
     $this->pageID = CRM_Utils_Request::retrieve('page_id', 'Positive', $this);
-    if (empty($this->ruleID)) {
-      return;
-    }
 
     $contactFields = civicrm_api3('Contact', 'getfields', [
       'api_action' => "get",
@@ -28,7 +25,13 @@ class CRM_Identifyuser_Form_DedupeIdentifier extends CRM_Core_Form {
     if (empty($ruleFields['count'])) {
       return;
     }
+    $replaceFields = [
+      'phone_numeric' => 'phone',
+    ];
     foreach ($ruleFields['values'] as $fields) {
+      if (!empty($replaceFields[$fields['rule_field']])) {
+        $fields['rule_field'] = $replaceFields[$fields['rule_field']];
+      }
       $field = $contactFields[$fields['rule_field']] ?? NULL;
       if (!empty($field)) {
         //Add some keys to avoid notice error.
@@ -60,31 +63,16 @@ class CRM_Identifyuser_Form_DedupeIdentifier extends CRM_Core_Form {
     ]);
     $contactID = CRM_Contact_BAO_Contact::getFirstDuplicateContact($values, 'Individual', $ruleGroup['used'], [], FALSE, $this->ruleID);
     if (!empty($contactID)) {
-      $checkSum = CRM_Contact_BAO_Contact_Utils::generateChecksum($contactID);
-      if (!empty($this->eventID)) {
-        $urlWithChecksum = CRM_Utils_System::url('civicrm/event/register', "reset=1&id={$this->eventID}&cid={$contactID}&cs={$checkSum}", TRUE);
+      if (!empty($values['phone'])) {
+        CRM_Identifyuser_Utils::sendOTP($contactID, $values['phone']);
+        CRM_Core_Page_AJAX::returnJsonResponse([
+          'contact_id' => $contactID,
+          'otp_sent' => TRUE
+        ]);
       }
       else {
-        $urlWithChecksum = CRM_Utils_System::url('civicrm/contribute/transact', "reset=1&id={$this->pageID}&cid={$contactID}&cs={$checkSum}", TRUE);
-      }
-      $toEmail = !empty($values['email']) ? $values['email'] : CRM_Contact_BAO_Contact::getPrimaryEmail($contactID);
-      if (!empty($toEmail) && !empty($urlWithChecksum)) {
-        $mailParams = [
-          'from' => CRM_Core_BAO_Domain::getNoReplyEmailAddress(),
-          'toName' => 'Test',
-          'toEmail' => $toEmail,
-          'subject' => 'Event Form',
-        ];
-        $mailParams['html'] = "Click here " . $urlWithChecksum;
-        $result = CRM_Utils_Mail::send($mailParams);
-        if (!$result || is_a($result, 'PEAR_Error')) {
-          CRM_Core_Session::setStatus(ts("Failed to send email to the user address."), ts(''), 'error');
-          return ['email_fail' => 'Failed to send message'];
-        }
-        CRM_Core_Session::setStatus(ts("Email with the checksum link has been sent to %1.", [1 => $toEmail]), ts(''), 'success');
-      }
-      else {
-        CRM_Core_Session::setStatus(ts("No email found for the contact."), ts(''), 'error');
+        $toEmail = !empty($values['email']) ? $values['email'] : CRM_Contact_BAO_Contact::getPrimaryEmail($contactID);
+        CRM_Identifyuser_Utils::sendChecksumLinkToContact($contactID, $toEmail, $this->eventID, $this->pageID);
       }
     }
     else {

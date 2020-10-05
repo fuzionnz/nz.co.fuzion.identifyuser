@@ -1,4 +1,4 @@
-<a id='user_lookup' class="action-item crm-hover-button" href='#'>{ts}Get Checksum Link in Email?{/ts}</a>
+<a id='user_lookup' class="action-item crm-hover-button" href='#'>{ts}Get OTP{/ts}</a>
 
 <script type="text/javascript">
 {literal}
@@ -17,11 +17,18 @@ CRM.$(function($) {
   }
 
   $("#user_lookup").click(function() {
-    CRM.loadForm(CRM.url('civicrm/dedupeidentifier', args), {autoClose: true})
+    CRM.loadForm(CRM.url('civicrm/dedupeidentifier', args), {autoClose: false, refreshAction: true, openInline: true})
       // Attach an event handler
       .on('crmFormSuccess', function(event, data) {
-        // do something after the form is submitted
-        // data includes everything returned by the server
+        if (data.otp_sent && data.contact_id) {
+          args.contact_id = data.contact_id;
+          CRM.loadForm(CRM.url('civicrm/verifyotp', args), {autoClose: false})
+             .on('crmFormSuccess', function(event, data) {
+               if (data.checksum_url) {
+                 window.location.href = data.checksum_url;
+               }
+             });
+        }
       });
     });
   });
