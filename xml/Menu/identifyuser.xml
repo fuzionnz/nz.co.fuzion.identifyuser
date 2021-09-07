@@ -14,4 +14,10 @@
     <access_callback>1</access_callback>
     <is_public>true</is_public>
   </item>
+  <item>
+    <path>civicrm/identifyusersetting</path>
+    <page_callback>CRM_Identifyuser_Form_IdentifyUserSetting</page_callback>
+    <title>IdentifyUserSetting</title>
+    <access_arguments>access CiviCRM</access_arguments>
+  </item>
 </menu>

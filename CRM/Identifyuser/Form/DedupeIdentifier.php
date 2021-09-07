@@ -8,10 +8,20 @@ use CRM_Identifyuser_ExtensionUtil as E;
  * @see https://docs.civicrm.org/dev/en/latest/framework/quickform/
  */
 class CRM_Identifyuser_Form_DedupeIdentifier extends CRM_Core_Form {
+
+  protected $_isAJAX = TRUE;
+
   public function buildQuickForm() {
+    CRM_Utils_System::setTitle(ts('Dedupe Identifier'));
+
     $this->ruleID = CRM_Utils_Request::retrieve('rule_id', 'Positive', $this);
     $this->eventID = CRM_Utils_Request::retrieve('event_id', 'Positive', $this);
     $this->pageID = CRM_Utils_Request::retrieve('page_id', 'Positive', $this);
+    $this->pageID = CRM_Utils_Request::retrieve('page_id', 'Positive', $this);
+    $this->_isAJAX = TRUE;
+    if (empty($_GET['snippet'])) {
+      $this->_isAJAX = FALSE;
+    }
 
     $contactFields = civicrm_api3('Contact', 'getfields', [
       'api_action' => "get",
@@ -23,6 +33,7 @@ class CRM_Identifyuser_Form_DedupeIdentifier extends CRM_Core_Form {
       'dedupe_rule_group_id' => $this->ruleID,
     ]);
     if (empty($ruleFields['count'])) {
+      CRM_Core_Session::setStatus(ts("No fields defined in the dedupe rule."), ts(''), 'error');
       return;
     }
     $replaceFields = [
@@ -41,6 +52,10 @@ class CRM_Identifyuser_Form_DedupeIdentifier extends CRM_Core_Form {
         }
         CRM_Core_BAO_UFGroup::buildProfile($this, $field, NULL);
       }
+    }
+    $setting = CRM_Identifyuser_Form_IdentifyUserSetting::getSetting();
+    if (!empty($setting['enable_recaptcha'])) {
+      CRM_Utils_ReCAPTCHA::enableCaptchaOnForm($this);
     }
 
     $this->addButtons(array(
@@ -63,20 +78,25 @@ class CRM_Identifyuser_Form_DedupeIdentifier extends CRM_Core_Form {
     ]);
     $contactID = CRM_Contact_BAO_Contact::getFirstDuplicateContact($values, 'Individual', $ruleGroup['used'], [], FALSE, $this->ruleID);
     if (!empty($contactID)) {
-      if (!empty($values['phone'])) {
+      // if (!empty($values['phone'])) {
         CRM_Identifyuser_Utils::sendOTP($contactID, $values['phone']);
+        if (empty($this->_isAJAX)) {
+          CRM_Utils_System::redirect(CRM_Utils_System::url('civicrm/verifyotp',
+            "reset=1&contact_id={$contactID}"
+          ));
+        }
         CRM_Core_Page_AJAX::returnJsonResponse([
           'contact_id' => $contactID,
           'otp_sent' => TRUE
         ]);
-      }
-      else {
-        $toEmail = !empty($values['email']) ? $values['email'] : CRM_Contact_BAO_Contact::getPrimaryEmail($contactID);
-        CRM_Identifyuser_Utils::sendChecksumLinkToContact($contactID, $toEmail, $this->eventID, $this->pageID);
-      }
+      // }
+      // else {
+      //   $toEmail = !empty($values['email']) ? $values['email'] : CRM_Contact_BAO_Contact::getPrimaryEmail($contactID);
+      //   CRM_Identifyuser_Utils::sendChecksumLinkToContact($contactID, $toEmail, $this->eventID, $this->pageID);
+      // }
     }
     else {
-      CRM_Core_Session::setStatus(ts("No User Found with these details. Please fill the complete form."), ts(''), 'success');
+      CRM_Core_Session::setStatus(ts("No User Found with these details. Please fill the complete form."), ts(''), 'error');
     }
 
     parent::postProcess();
@@ -96,7 +116,7 @@ class CRM_Identifyuser_Form_DedupeIdentifier extends CRM_Core_Form {
     foreach ($this->_elements as $element) {
       /** @var HTML_QuickForm_Element $element */
       $label = $element->getLabel();
-      if (!empty($label)) {
+      if (!empty($label) && $label != 'reCaptcha') {
         $elementNames[] = $element->getName();
       }
     }
