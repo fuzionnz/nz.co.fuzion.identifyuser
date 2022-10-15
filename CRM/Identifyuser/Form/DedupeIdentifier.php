@@ -78,7 +78,7 @@ class CRM_Identifyuser_Form_DedupeIdentifier extends CRM_Core_Form {
     ]);
     $contactID = CRM_Contact_BAO_Contact::getFirstDuplicateContact($values, 'Individual', $ruleGroup['used'], [], FALSE, $this->ruleID);
     if (!empty($contactID)) {
-      // if (!empty($values['phone'])) {
+      if (!empty($values['phone'])) {
         CRM_Identifyuser_Utils::sendOTP($contactID, $values['phone']);
         if (empty($this->_isAJAX)) {
           CRM_Utils_System::redirect(CRM_Utils_System::url('civicrm/verifyotp',
@@ -89,11 +89,11 @@ class CRM_Identifyuser_Form_DedupeIdentifier extends CRM_Core_Form {
           'contact_id' => $contactID,
           'otp_sent' => TRUE
         ]);
-      // }
-      // else {
-      //   $toEmail = !empty($values['email']) ? $values['email'] : CRM_Contact_BAO_Contact::getPrimaryEmail($contactID);
-      //   CRM_Identifyuser_Utils::sendChecksumLinkToContact($contactID, $toEmail, $this->eventID, $this->pageID);
-      // }
+      }
+      else {
+        $toEmail = !empty($values['email']) ? $values['email'] : CRM_Contact_BAO_Contact::getPrimaryEmail($contactID);
+        CRM_Identifyuser_Utils::sendChecksumLinkToContact($contactID, $toEmail, $this->eventID, $this->pageID);
+      }
     }
     else {
       CRM_Core_Session::setStatus(ts("No User Found with these details. Please fill the complete form."), ts(''), 'error');
