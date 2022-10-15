@@ -1,8 +1,6 @@
-# nz.co.fuzion.identifyuser
+# Identify User on donation and event pages
 
-![Screenshot](/images/screenshot.png)
-
-(*FIXME: In one or two paragraphs, describe what the extension does and why one would download it. *)
+Allows anonymous users to lookup thier existing contact in civicrm with OTP verification and load donation/event pages with checksum URL	
 
 The extension is licensed under [AGPL-3.0](LICENSE.txt).
 
@@ -37,7 +35,16 @@ cv en identifyuser
 
 ## Usage
 
-(* FIXME: Where would a new user navigate to get started? What changes would they see? *)
+Configuration Page is at - `/civicrm/identifyusersetting?reset=1`
+
+To enable User verification on Events -
+
+- Navigate to Event settings page => `Online Registration` tab
+- Enable `Enable User Lookup on the page?` checkbox. Save.
+- When you load the event page as anonymous, a button appears on the top. 
+- It loads a form with the fields from unsupervised dedupe rule.
+- User fills the details on the form and based on phone or email value, the extension sends to code as an SMS or email.
+- The next page verifies the code using which the page reloads with the checksum link for the contact.
 
 ## Known Issues
 
